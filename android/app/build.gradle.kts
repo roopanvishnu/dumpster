@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.garbage1"
-        minSdk = 23 // Updated minSdk version
+        minSdk = flutter.minSdkVersion // Updated minSdk version
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -60,5 +60,5 @@ dependencies {
     implementation("androidx.multidex:multidex:2.0.1")
     
     // Add core library desugaring for Java 8+ features
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:1.2.2")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

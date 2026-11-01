@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- TEMP placeholder: google-services.json has no oauth_client yet.
+         Once a google-services.json with an oauth_client is in place, the plugin generates the real value,
+         which overrides this one. Delete this file at that point. -->
+    <string name="default_web_client_id" translatable="false">PLACEHOLDER</string>
+</resources>

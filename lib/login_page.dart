@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:garbage1/home_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'signupPage.dart';
+import 'theme.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,10 +14,17 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  String _selectedRole = "General People"; // Changed default role to General People
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _showErrorDialog(String message) async {
     if (!mounted) return;
@@ -24,8 +32,9 @@ class _LoginPageState extends State<LoginPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Error"),
-          content: Text(message),
+          icon: const Icon(Icons.error_outline, color: AppColors.danger),
+          title: const Text("Sign-in failed"),
+          content: Text(message, textAlign: TextAlign.center),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -37,286 +46,292 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Add Google Sign In method
-  Future<void> _signInWithGoogle() async {
-  try {
-    final GoogleSignIn googleSignIn = GoogleSignIn();
-    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-
-    if (googleUser == null) {
-      print("Google Sign-In canceled by user");
-      return;
-    }
-
-    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-    final OAuthCredential credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
+  void _goHome(String username, String role) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HomePage(username: username, role: role),
+      ),
     );
+  }
 
-    // Sign in with Firebase
-    final UserCredential userCredential =
-        await FirebaseAuth.instance.signInWithCredential(credential);
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) return; // cancelled
 
-    final User? user = userCredential.user;
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
 
-    if (user != null) {
-      // Check if user exists in Firestore
-      final DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection("users")
-          .doc(user.uid)
-          .get();
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
+      final User? user = userCredential.user;
+      if (user == null) return;
 
+      final ref = FirebaseFirestore.instance.collection("users").doc(user.uid);
+      final userDoc = await ref.get();
       if (!userDoc.exists) {
-        await FirebaseFirestore.instance.collection("users").doc(user.uid).set({
+        await ref.set({
           "name": user.displayName ?? "Google User",
           "email": user.email,
           "role": "General People",
           "createdAt": FieldValue.serverTimestamp(),
         });
       }
-
-      final userData = (await FirebaseFirestore.instance
-              .collection("users")
-              .doc(user.uid)
-              .get())
-          .data();
+      final userData = (await ref.get()).data();
 
       if (!mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomePage(
-            username: user.email ?? "Google User",
-            role: userData?["role"] ?? "General People",
-          ),
-        ),
+      _goHome(
+        userData?["name"] ?? user.email ?? "Google User",
+        userData?["role"] ?? "General People",
       );
+    } catch (e) {
+      _showErrorDialog("Google Sign-In failed: $e");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-  } catch (e) {
-    print("Google Sign-In Error: $e");
-    _showErrorDialog("Google Sign-In failed: $e");
   }
-}
 
-
-  // Modified login function to make it more robust
   Future<void> _login() async {
-  final String username = _usernameController.text.trim();
-  final String password = _passwordController.text.trim();
+    final String email = _usernameController.text.trim();
+    final String password = _passwordController.text.trim();
 
-  if (username.isEmpty || password.isEmpty) {
-    _showErrorDialog("Please enter a valid email and password.");
-    return;
-  }
+    if (email.isEmpty || password.isEmpty) {
+      _showErrorDialog("Please enter your email and password.");
+      return;
+    }
 
-  try {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
+    try {
+      final userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+      final User? user = userCredential.user;
+      if (user == null) return;
 
-    print("Attempting to login with Email: $username");
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection("users")
+              .doc(user.uid)
+              .get();
+      final userData = userDoc.data();
 
-    final UserCredential userCredential = await FirebaseAuth.instance
-        .signInWithEmailAndPassword(email: username, password: password);
-
-    final User? user = userCredential.user;
-
-    if (user != null) {
-      print("User authenticated: ${user.uid}");
-
-      // Get user data from Firestore
-      final DocumentSnapshot userDoc = 
-          await FirebaseFirestore.instance.collection("users").doc(user.uid).get();
-
-      if (!userDoc.exists) {
-        print("Error: User document does not exist in Firestore.");
-        _showErrorDialog("User data not found. Contact support.");
+      if (!userDoc.exists || userData == null) {
+        _showErrorDialog("User profile not found. Contact support.");
         return;
       }
-
-      final userData = userDoc.data() as Map<String, dynamic>?;
-      if (userData == null) {
-        print("Error: User data is null.");
-        _showErrorDialog("User data is null. Contact support.");
-        return;
-      }
-
       final String? role = userData["role"] as String?;
-      print("User role from Firestore: $role");
-
       if (role == null) {
-        print("Error: Role is null in user data.");
         _showErrorDialog("Role information is missing. Contact support.");
         return;
       }
 
       if (!mounted) return;
-
-      // Navigate to HomePage
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomePage(
-            username: username,
-            role: role,
-          ),
-        ),
-      );
-    }
-  } on FirebaseAuthException catch (e) {
-    print("FirebaseAuthException: ${e.code} - ${e.message}");
-    String errorMessage = "Authentication failed";
-    
-    if (e.code == 'user-not-found') {
-      errorMessage = "No user found with this email.";
-    } else if (e.code == 'wrong-password') {
-      errorMessage = "Wrong password provided.";
-    } else if (e.code == 'invalid-email') {
-      errorMessage = "The email address is not valid.";
-    } else if (e.message != null) {
-      errorMessage = e.message!;
-    }
-
-    _showErrorDialog(errorMessage);
-  } catch (e) {
-    print("Unexpected error occurred: $e");
-    _showErrorDialog("An unexpected error occurred: $e");
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+      _goHome(userData["name"] ?? email, role);
+    } on FirebaseAuthException catch (e) {
+      String msg;
+      switch (e.code) {
+        case 'user-not-found':
+        case 'wrong-password':
+        case 'invalid-credential':
+          msg = "Incorrect email or password.";
+          break;
+        case 'invalid-email':
+          msg = "The email address is not valid.";
+          break;
+        case 'too-many-requests':
+          msg = "Too many attempts. Please try again later.";
+          break;
+        default:
+          msg = e.message ?? "Authentication failed.";
+      }
+      _showErrorDialog(msg);
+    } catch (e) {
+      _showErrorDialog("An unexpected error occurred: $e");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
+    final topInset = MediaQuery.of(context).padding.top;
     return Scaffold(
-      backgroundColor: Colors.blue,
-      appBar: AppBar(
-        title: const Text(
-          "Login",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-      ),
-      body: Center(
-        child: Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                DropdownButtonFormField<String>(
-                  value: _selectedRole,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedRole = value!;
-                    });
-                  },
-                  items: [
-                    "Corporation Official",
-                    "General People",
-                  ].map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  decoration: const InputDecoration(
-                    labelText: "Role",
-                    border: OutlineInputBorder(),
-                  ),
+      backgroundColor: AppColors.background,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Brand header
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(24, topInset + 48, 24, 72),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primaryDark, AppColors.primary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: "Email",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(32),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: "Password",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _login,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Column(
+                children: [
+                  AppLogo(size: 76),
+                  SizedBox(height: 18),
+                  Text(
+                    "Smart Citizen",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
                     ),
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
                   ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Login", style: TextStyle(fontSize: 16)),
-                ),
-                const SizedBox(height: 16),
-                // Add Google Sign-In button
-                ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _signInWithGoogle,
-                  
-                  label: const Text(
-                    "Sign in with Google",
-                    style: TextStyle(fontSize: 16, color: Colors.black87),
+                  SizedBox(height: 6),
+                  Text(
+                    "Report civic issues. Track resolutions.",
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    backgroundColor: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text("New user?"),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SignUpPage(),
+                ],
+              ),
+            ),
+
+            // Form card overlapping the header
+            Transform.translate(
+              offset: const Offset(0, -40),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Card(
+                  elevation: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(22),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          "Welcome back",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
                           ),
-                        );
-                      },
-                      child: const Text(
-                        "Sign Up",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          "Sign in to continue to your account",
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(height: 22),
+                        TextField(
+                          controller: _usernameController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.email],
+                          decoration: const InputDecoration(
+                            labelText: "Email address",
+                            prefixIcon: Icon(Icons.mail_outline),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: _obscure,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _isLoading ? null : _login(),
+                          autofillHints: const [AutofillHints.password],
+                          decoration: InputDecoration(
+                            labelText: "Password",
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                              ),
+                              onPressed:
+                                  () => setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        FilledButton(
+                          onPressed: _isLoading ? null : _login,
+                          child:
+                              _isLoading
+                                  ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                  : const Text("Sign in"),
+                        ),
+                        const SizedBox(height: 18),
+                        const Row(
+                          children: [
+                            Expanded(child: Divider()),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                "or",
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _signInWithGoogle,
+                          icon: const Text(
+                            "G",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF4285F4),
+                            ),
+                          ),
+                          label: const Text("Continue with Google"),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                ),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  "New here?",
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SignUpPage(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "Create an account",
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );

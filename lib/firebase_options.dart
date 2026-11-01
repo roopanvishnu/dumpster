@@ -2,7 +2,8 @@
 // ignore_for_file: lines_longer_than_80_chars, avoid_classes_with_only_static_members
 
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 /// Default [FirebaseOptions] for use with your Firebase app on Android only.
 ///
@@ -26,11 +27,10 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: "AIzaSyDNHuQM_yps0VT1vkUW8lOELk8r2KHxgIM",
-    appId: "1:195851189596:android:06e531225c6ae824c61599",
-    messagingSenderId: "195851189596",
-    projectId: "garbage-app-e9f75",
-    storageBucket: "garbage-app-e9f75.appspot.com",
+    apiKey: "AIzaSyCNx-chRvkEBoL3gWAbhaAM9iMgpaj4UZ0",
+    appId: "1:836703528762:android:64d8364d453ff9c8d1d203",
+    messagingSenderId: "836703528762",
+    projectId: "garbage-b4d35",
+    storageBucket: "garbage-b4d35.firebasestorage.app",
   );
 }
-

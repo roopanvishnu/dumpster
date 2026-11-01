@@ -202,7 +202,7 @@ class _HomePageState extends State<HomePage> {
 //   @override
 //   Widget build(BuildContext context) {
 //     final bool isOfficialRole = widget.role == 'Corporation Official';
-    
+
 //     return Scaffold(
 //       appBar: AppBar(
 //         title: Text(isOfficialRole ? 'Ticket Management' : 'Home'),
@@ -228,7 +228,7 @@ class _HomePageState extends State<HomePage> {
 //                 decoration: BoxDecoration(
 //                   borderRadius: BorderRadius.circular(16),
 //                   gradient: LinearGradient(
-//                     colors: isOfficialRole 
+//                     colors: isOfficialRole
 //                       ? [Colors.indigo.shade300, Colors.indigo.shade600]
 //                       : [Colors.blue.shade300, Colors.blue.shade600],
 //                     begin: Alignment.topLeft,
@@ -265,9 +265,9 @@ class _HomePageState extends State<HomePage> {
 //                 ),
 //               ),
 //             ),
-            
+
 //             const SizedBox(height: 24),
-            
+
 //             // Ticket Submission Form - Only for General People
 //             if (!isOfficialRole) ...[
 //               Row(
@@ -365,7 +365,7 @@ class _HomePageState extends State<HomePage> {
 //                 ),
 //               ),
 //             ],
-            
+
 //             // Tickets List Section
 //             const SizedBox(height: 24),
 //             Row(
@@ -382,7 +382,7 @@ class _HomePageState extends State<HomePage> {
 //                     Text(
 //                       isOfficialRole ? 'Citizen Tickets' : 'Your Tickets',
 //                       style: TextStyle(
-//                         fontSize: 18, 
+//                         fontSize: 18,
 //                         fontWeight: FontWeight.bold,
 //                         color: isOfficialRole ? Colors.indigo : Colors.blue,
 //                       ),
@@ -398,7 +398,7 @@ class _HomePageState extends State<HomePage> {
 //               ],
 //             ),
 //             const SizedBox(height: 16),
-            
+
 //             // Tickets list
 //             _isLoadingTickets
 //                 ? const Center(
@@ -439,11 +439,11 @@ class _HomePageState extends State<HomePage> {
 //                     itemCount: _tickets.length,
 //                     itemBuilder: (context, index) {
 //                       final ticket = _tickets[index];
-                      
+
 //                       // Determine status color
 //                       Color statusColor;
 //                       IconData statusIcon;
-                      
+
 //                       switch(ticket['status']) {
 //                         case 'Open':
 //                           statusColor = Colors.orange;
@@ -461,7 +461,7 @@ class _HomePageState extends State<HomePage> {
 //                           statusColor = Colors.grey;
 //                           statusIcon = Icons.help_outline;
 //                       }
-                      
+
 //                       return Card(
 //                         margin: const EdgeInsets.only(bottom: 12),
 //                         shape: RoundedRectangleBorder(
